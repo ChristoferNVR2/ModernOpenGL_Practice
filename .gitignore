@@ -1,3 +1,11 @@
+# Ignore CLion-specific configuration files
+.idea/
+workspace.xml
+shelf/
+httpRequests/
+dataSources/
+dataSources.local.xml
+
 # Default ignored files
 /shelf/
 /workspace.xml
@@ -6,4 +14,6 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+
+# CMake build directory
 cmake-build-debug/
