@@ -1,3 +1,0 @@
-/home/chrisvega/CLionProjects/ModernOpenGL/cmake-build-debug/CMakeFiles/ModernOpenGL.dir
-/home/chrisvega/CLionProjects/ModernOpenGL/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/chrisvega/CLionProjects/ModernOpenGL/cmake-build-debug/CMakeFiles/rebuild_cache.dir
