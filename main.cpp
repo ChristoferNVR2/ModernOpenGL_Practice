@@ -5,6 +5,31 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <csignal>
+
+// Platform-specific debug break
+#ifdef __linux__
+    #define debugBreak() raise(SIGTRAP)  // Linux equivalent for debug break
+#elif _WIN32
+    #define debugBreak() __debugbreak()  // Windows debug break
+#endif
+
+#define ASSERT(x) if (!(x)) debugBreak();
+#define GLCall(x) GLClearError();\
+    x;\
+    ASSERT(GLLogCall(#x, __FILE__, __LINE__));
+
+static void GLClearError() {
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static bool GLLogCall(const char* function, const char* file, int line) {
+    while (GLenum error = glGetError()) {
+        std::cout << "[OpenGL Error] (" << error << "): " << function << " " << file << ":" << line << std::endl;
+        return false;
+    }
+    return true;
+}
 
 struct ShaderProgramSource {
     std::string VertexSource;
@@ -77,18 +102,15 @@ static unsigned int CreateShader(const std::string& vertexShader, const std::str
     return program;
 }
 
-int main()
-{
-    GLFWwindow* window;
-
+int main() {
     /* Initialize the library */
     if (!glfwInit())
         return -1;
 
-    glewInit();
-
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
+
+    glewInit();
 
     if (!window)
     {
@@ -105,19 +127,32 @@ int main()
     std::cout << glGetString(GL_VERSION) << std::endl;
 
 
-    float positions[6] = {
-        -0.5f, -0.5f,
-         0.0f,  0.5f,
-         0.5f, -0.5f
+    float positions[] = {
+        -0.5f, -0.5f, // 0
+         0.5f, -0.5f, // 1
+         0.5f,  0.5f, // 2
+        -0.5f,  0.5f  // 3
+    };
+
+    unsigned int indices[] = {
+        0, 1, 2,
+        2, 3, 0
     };
 
     unsigned int buffer;
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, nullptr);
+
+    // Index Buffer Object
+    unsigned int ibo;
+    glGenBuffers(1, &ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+
 
     // Don't forget to set the working directory to the project root directory
     ShaderProgramSource source = ParseShader("res/shaders/Basic.shader");
@@ -131,17 +166,8 @@ int main()
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Legacy OpenGL
-
-        // glBegin(GL_TRIANGLES);
-        // glVertex2f(-0.5f, -0.5f);
-        // glVertex2f( 0.0f,  0.5f);
-        // glVertex2f( 0.5f, -0.5f);
-        // glEnd();
-
-        // Modern OpenGL
-
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr))
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
