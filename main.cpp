@@ -23,9 +23,9 @@ static void GLClearError() {
     while (glGetError() != GL_NO_ERROR);
 }
 
-static bool GLLogCall(const char* function, const char* file, int line) {
+static bool GLLogCall(const char* function, const char* file, const int line) {
     while (GLenum error = glGetError()) {
-        std::cout << "[OpenGL Error] (" << error << "): " << function << " " << file << ":" << line << std::endl;
+        std::cerr << "[OpenGL Error] (" << error << "): " << function << " " << file << ":" << line << std::endl;
         return false;
     }
     return true;
@@ -128,16 +128,18 @@ int main() {
     glfwSwapInterval(1);
 
     if (glewInit() != GLEW_OK)
-        std::cout << "Error!" << std::endl;
+        std::cerr << "Error!" << std::endl;
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    // Enable depth test for correct 3D rendering
+    glEnable(GL_DEPTH_TEST);
 
     float positions[] = {
-        -0.5f, -0.5f, 0.5,// 0
-         0.5f, -0.5f, -0.5,// 1
-         0.5f,  0.5f, 0.5// 2
-        -0.5f,  0.5f,  0.5// 3
+        -0.5f, -0.5f,   // 0
+         0.5f, -0.5f,   // 1
+         0.5f,  0.5f,   // 2
+        -0.5f,  0.5f    // 3
     };
 
     unsigned int indices[] = {
