@@ -12,7 +12,15 @@ find_package(GLEW REQUIRED)
 include_directories(${GLFW_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 
-add_executable(ModernOpenGL main.cpp)
+add_executable(ModernOpenGL
+        src/main.cpp
+        src/Renderer.cpp
+        src/Renderer.h
+        src/VertexBuffer.cpp
+        src/VertexBuffer.h
+        src/IndexBuffer.cpp
+        src/IndexBuffer.h
+)
 
 # Link GLFW
 target_link_libraries(ModernOpenGL PRIVATE glfw OpenGL::GL GLEW::GLEW)
