@@ -2,8 +2,7 @@
 // Created by chrisvega on 10/12/24.
 //
 
-#ifndef INDEXBUFFER_H
-#define INDEXBUFFER_H
+#pragma once
 
 class IndexBuffer {
 private:
@@ -19,4 +18,3 @@ public:
     inline unsigned int GetCount() const { return m_count; }
 };
 
-#endif //INDEXBUFFER_H

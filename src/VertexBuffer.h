@@ -2,8 +2,7 @@
 // Created by chrisvega on 10/11/24.
 //
 
-#ifndef VERTEXBUFFER_H
-#define VERTEXBUFFER_H
+#pragma once
 
 class VertexBuffer {
 private:
@@ -16,5 +15,3 @@ public:
 
     void Unbind() const;
 };
-
-#endif //VERTEXBUFFER_H

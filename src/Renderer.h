@@ -2,8 +2,7 @@
 // Created by chrisvega on 10/11/24.
 //
 
-#ifndef RENDERER_H
-#define RENDERER_H
+#pragma once
 
 #include <GL/glew.h>
 #include <csignal>
@@ -17,10 +16,8 @@
 
 #define ASSERT(x) if (!(x)) debugBreak();
 #define GLCall(x) GLClearError();\
-x;\
-ASSERT(GLLogCall(#x, __FILE__, __LINE__));
+    x;\
+    ASSERT(GLLogCall(#x, __FILE__, __LINE__));
 
 void GLClearError();
 bool GLLogCall(const char* function, const char* file, int line);
-
-#endif //RENDERER_H

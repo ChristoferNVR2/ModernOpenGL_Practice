@@ -20,6 +20,10 @@ add_executable(ModernOpenGL
         src/VertexBuffer.h
         src/IndexBuffer.cpp
         src/IndexBuffer.h
+        src/VertexArray.cpp
+        src/VertexArray.h
+        src/VertexBufferLayout.cpp
+        src/VertexBufferLayout.h
 )
 
 # Link GLFW
