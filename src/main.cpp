@@ -14,6 +14,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
+#include "Texture.h"
 
 int main() {
     /* Initialize the library */
@@ -21,7 +22,7 @@ int main() {
         return -1;
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Hello World", nullptr, nullptr);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -47,10 +48,10 @@ int main() {
 
     {
         float positions[] = {
-            -0.5f, -0.5f,   // 0
-             0.5f, -0.5f,   // 1
-             0.5f,  0.5f,   // 2
-            -0.5f,  0.5f    // 3
+            -0.5f, -0.5f, 0.0f, 0.0f,   // 0
+             0.5f, -0.5f, 1.0f, 0.0f,   // 1
+             0.5f,  0.5f, 1.0f, 1.0f,   // 2
+            -0.5f,  0.5f, 0.0f, 1.0f    // 3
         };
 
         unsigned int indices[] = {
@@ -58,10 +59,14 @@ int main() {
             2, 3, 0
         };
 
+        GLCall(glEnable(GL_BLEND));
+        GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
         VertexArray va;
-        VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+        VertexBuffer vb(positions, 4 * 4 * sizeof(float));
 
         VertexBufferLayout layout;
+        layout.Push<float>(2);
         layout.Push<float>(2);
         va.AddBuffer(vb, layout);
 
@@ -71,6 +76,11 @@ int main() {
         Shader shader("res/shaders/Basic.shader");
         shader.Bind();
         shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
+
+        Texture texture("res/textures/cube.png");
+        texture.Bind(); // slot 0 by default
+        shader.SetUniform1i("u_Texture", 0);
+
 
         va.Unbind();
         shader.Unbind();

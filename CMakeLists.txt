@@ -26,6 +26,10 @@ add_executable(ModernOpenGL
         src/VertexBufferLayout.h
         src/Shader.cpp
         src/Shader.h
+        src/vendor/stb_image/stb_image.h
+        src/vendor/stb_image/stb_image.cpp
+        src/Texture.cpp
+        src/Texture.h
 )
 
 # Link GLFW
