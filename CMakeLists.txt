@@ -42,6 +42,8 @@ add_executable(ModernOpenGL
         src/vendor/imgui/stb_rect_pack.h
         src/vendor/imgui/stb_textedit.h
         src/vendor/imgui/stb_truetype.h
+        src/ObjLoader.cpp
+        src/ObjLoader.h
 )
 
 # Link GLFW

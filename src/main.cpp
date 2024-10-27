@@ -13,7 +13,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
-#include "Texture.h"
+#include "ObjLoader.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -21,20 +21,49 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw_gl3.h"
 
+void DrawAxes(const glm::mat4& proj, const glm::mat4& view) {
+    static constexpr float axisVertices[] = {
+        // X axis (red)
+        0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        10.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        // Y axis (green)
+        0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 10.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        // Z axis (blue)
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    VertexArray va;
+    VertexBuffer vb(axisVertices, sizeof(axisVertices));
+
+    VertexBufferLayout layout;
+    layout.Push<float>(3); // Position
+    layout.Push<float>(3); // Color
+    va.AddBuffer(vb, layout);
+
+    auto model = glm::mat4(1.0f);
+    glm::mat4 mvp = proj * view * model;
+
+    Shader axisShader("res/shaders/Axis.shader");
+    axisShader.Bind();
+    axisShader.SetUniformMat4f("u_MVP", mvp);
+
+    va.Bind();
+    glDrawArrays(GL_LINES, 0, 6);
+}
+
 int main() {
     /* Initialize the library */
     if (!glfwInit())
         return -1;
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(960, 540, "Hello World", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Hello World", nullptr, nullptr);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-
-    glewInit();
 
     if (!window) {
         glfwTerminate();
@@ -46,48 +75,43 @@ int main() {
 
     glfwSwapInterval(1);
 
-    if (glewInit() != GLEW_OK)
-        std::cerr << "Error!" << std::endl;
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "Error initializing GLEW!" << std::endl;
+        return -1;
+    }
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     {
-        float positions[] = {
-            -50.0f, -50.0f, 0.0f, 0.0f,   // 0
-             50.0f, -50.0f, 1.0f, 0.0f,   // 1
-             50.0f,  50.0f, 1.0f, 1.0f,   // 2
-            -50.0f,  50.0f, 0.0f, 1.0f    // 3
-        };
+        ObjLoader loader;
+        if (!loader.Load("res/models/centaurwarrior.obj")) {
+            std::cerr << "Failed to load .obj file." << std::endl;
+            return -1;
+        }
 
-        unsigned int indices[] = {
-            0, 1, 2,
-            2, 3, 0
-        };
+        const auto& vertices = loader.GetVertices();
+        const auto& indices = loader.GetIndices();
 
         GLCall(glEnable(GL_BLEND));
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         VertexArray va;
-        VertexBuffer vb(positions, 4 * 4 * sizeof(float));
+        VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
 
         VertexBufferLayout layout;
-        layout.Push<float>(2);
-        layout.Push<float>(2);
+        layout.Push<float>(3); // Position
+        layout.Push<float>(2); // Texture coordinates
+        layout.Push<float>(3); // Normal
         va.AddBuffer(vb, layout);
 
-        IndexBuffer ib(indices, 6);
+        IndexBuffer ib(indices.data(), indices.size());
 
-        glm::mat4 proj = glm::ortho(0.0f, 960.0f, 0.0f, 540.0f, -1.0f, 1.0f);
-        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 150), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         Shader shader("res/shaders/Basic.shader");
         shader.Bind();
-        shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
-
-        Texture texture("res/textures/cube.png");
-        texture.Bind(); // slot 0 by default
-        shader.SetUniform1i("u_Texture", 0);
-
+        shader.SetUniform4f("u_Color", 0.1f, 0.1f, 0.1f, 1.0f);
 
         va.Unbind();
         shader.Unbind();
@@ -100,19 +124,25 @@ int main() {
         ImGui_ImplGlfwGL3_Init(window, true);
         ImGui::StyleColorsDark();
 
-        glm::vec3 translationA(200, 200, 0);
-        glm::vec3 translationB(400, 200, 0);
+        glm::vec3 translation(0, 0, 0);
+        glm::vec3 cameraPos(0.0f, 0.0f, 5.0f);
+        glm::vec3 cameraFront(0.0f, 0.0f, -1.0f);
+        glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+        float scale = 1.0f;
 
-        float r = 0.0f;
-        float increment = 0.05f;
+        bool isDragging = false;
+        bool isCameraDragging = false;
+        double lastMouseX, lastMouseY;
 
         while (!glfwWindowShouldClose(window)) {
             renderer.Clear();
 
+            DrawAxes(proj, view);
+
             ImGui_ImplGlfwGL3_NewFrame();
 
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), translationA);
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale));
                 glm::mat4 mvp = proj * view * model;
                 shader.Bind();
                 shader.SetUniformMat4f("u_MVP", mvp);
@@ -121,26 +151,55 @@ int main() {
             }
 
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
-                glm::mat4 mvp = proj * view * model;
-                shader.Bind();
-                shader.SetUniformMat4f("u_MVP", mvp);
-
-                renderer.Draw(va, ib, shader);
-            }
-
-            if (r > 1.0f)
-                increment = -0.05f;
-            else if (r < 0.0f)
-                increment = 0.05f;
-
-            r += increment;
-
-            {
-                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, 960.0f);
-                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, 960.0f);
+                ImGui::SliderFloat3("Translation", &translation.x, -5.0f, 5.0f);
+                ImGui::SliderFloat("Scale", &scale, 0.1f, 10.0f);
+                ImGui::SliderFloat3("Camera Position", &cameraPos.x, -10.0f, 10.0f);
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
+
+            // Handle mouse dragging
+            if (ImGui::IsMouseClicked(0)) {
+                isDragging = true;
+                glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+            }
+
+            if (ImGui::IsMouseReleased(0)) {
+                isDragging = false;
+            }
+
+            if (isDragging) {
+                double mouseX, mouseY;
+                glfwGetCursorPos(window, &mouseX, &mouseY);
+                double deltaX = mouseX - lastMouseX;
+                double deltaY = mouseY - lastMouseY;
+                translation.x += static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
+                translation.y -= static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+            }
+
+            // Handle camera dragging
+            if (ImGui::IsMouseClicked(1)) {
+                isCameraDragging = true;
+                glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+            }
+
+            if (ImGui::IsMouseReleased(1)) {
+                isCameraDragging = false;
+            }
+
+            if (isCameraDragging) {
+                double mouseX, mouseY;
+                glfwGetCursorPos(window, &mouseX, &mouseY);
+                double deltaX = mouseX - lastMouseX;
+                double deltaY = mouseY - lastMouseY;
+                cameraPos.x -= static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
+                cameraPos.y += static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+            }
+
+            view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
             ImGui::Render();
             ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
