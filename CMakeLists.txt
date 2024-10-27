@@ -11,6 +11,7 @@ find_package(GLEW REQUIRED)
 # Include GLFW header files
 include_directories(${GLFW_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/src/vendor)
 
 add_executable(ModernOpenGL
         src/main.cpp

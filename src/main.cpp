@@ -4,7 +4,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
 #include <csignal>
 
 #include "Renderer.h"
@@ -16,13 +15,16 @@
 #include "Shader.h"
 #include "Texture.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 int main() {
     /* Initialize the library */
     if (!glfwInit())
         return -1;
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Hello World", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(960, 540, "Hello World", nullptr, nullptr);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -48,10 +50,10 @@ int main() {
 
     {
         float positions[] = {
-            -0.5f, -0.5f, 0.0f, 0.0f,   // 0
-             0.5f, -0.5f, 1.0f, 0.0f,   // 1
-             0.5f,  0.5f, 1.0f, 1.0f,   // 2
-            -0.5f,  0.5f, 0.0f, 1.0f    // 3
+            100.0f, 100.0f, 0.0f, 0.0f,   // 0
+            200.0f, 100.0f, 1.0f, 0.0f,   // 1
+            200.0f, 200.0f, 1.0f, 1.0f,   // 2
+            100.0f, 200.0f, 0.0f, 1.0f    // 3
         };
 
         unsigned int indices[] = {
@@ -72,10 +74,16 @@ int main() {
 
         IndexBuffer ib(indices, 6);
 
+        glm::mat4 proj = glm::ortho(0.0f, 960.0f, 0.0f, 540.0f, -1.0f, 1.0f);
+        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(-100, 0, 0));
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(200, 200, 0));
+
+        glm::mat4 mvp = proj * view * model;
 
         Shader shader("res/shaders/Basic.shader");
         shader.Bind();
         shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
+        shader.SetUniformMat4f("u_MVP", mvp);
 
         Texture texture("res/textures/cube.png");
         texture.Bind(); // slot 0 by default
