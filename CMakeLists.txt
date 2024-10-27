@@ -31,6 +31,17 @@ add_executable(ModernOpenGL
         src/vendor/stb_image/stb_image.cpp
         src/Texture.cpp
         src/Texture.h
+        src/vendor/imgui/imconfig.h
+        src/vendor/imgui/imgui.cpp
+        src/vendor/imgui/imgui.h
+        src/vendor/imgui/imgui_demo.cpp
+        src/vendor/imgui/imgui_draw.cpp
+        src/vendor/imgui/imgui_impl_glfw_gl3.cpp
+        src/vendor/imgui/imgui_impl_glfw_gl3.h
+        src/vendor/imgui/imgui_internal.h
+        src/vendor/imgui/stb_rect_pack.h
+        src/vendor/imgui/stb_textedit.h
+        src/vendor/imgui/stb_truetype.h
 )
 
 # Link GLFW
