@@ -106,8 +106,8 @@ int main() {
 
         IndexBuffer ib(indices.data(), indices.size());
 
-        glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 150), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         Shader shader("res/shaders/Basic.shader");
         shader.Bind();
@@ -132,6 +132,7 @@ int main() {
 
         bool isDragging = false;
         bool isCameraDragging = false;
+        bool isCameraRotating = false;
         double lastMouseX, lastMouseY;
 
         while (!glfwWindowShouldClose(window)) {
@@ -157,14 +158,34 @@ int main() {
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
 
+            // Capture mouse wheel input
+            float mouseWheel = ImGui::GetIO().MouseWheel;
+            if (mouseWheel != 0.0f) {
+                if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+                    // Adjust the Z position of the camera based on mouse wheel input
+                    cameraPos.z += mouseWheel;
+                } else {
+                    // Adjust the X position of the translation vector based on mouse wheel input
+                    translation.z += mouseWheel;
+                }
+            }
+
             // Handle mouse dragging
             if (ImGui::IsMouseClicked(0)) {
-                isDragging = true;
+                if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+                    isCameraDragging = true;
+                } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+                    isCameraRotating = true;
+                } else {
+                    isDragging = true;
+                }
                 glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
             }
 
             if (ImGui::IsMouseReleased(0)) {
                 isDragging = false;
+                isCameraDragging = false;
+                isCameraRotating = false;
             }
 
             if (isDragging) {
@@ -178,16 +199,6 @@ int main() {
                 lastMouseY = mouseY;
             }
 
-            // Handle camera dragging
-            if (ImGui::IsMouseClicked(1)) {
-                isCameraDragging = true;
-                glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
-            }
-
-            if (ImGui::IsMouseReleased(1)) {
-                isCameraDragging = false;
-            }
-
             if (isCameraDragging) {
                 double mouseX, mouseY;
                 glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -195,6 +206,23 @@ int main() {
                 double deltaY = mouseY - lastMouseY;
                 cameraPos.x -= static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
                 cameraPos.y += static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+            }
+
+            if (isCameraRotating) {
+                double mouseX, mouseY;
+                glfwGetCursorPos(window, &mouseX, &mouseY);
+                double deltaX = mouseX - lastMouseX;
+                double deltaY = mouseY - lastMouseY;
+
+                float angleX = static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
+                float angleY = static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+
+                glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angleX, cameraUp) * glm::rotate(glm::mat4(1.0f), angleY, glm::cross(cameraFront, cameraUp));
+                cameraPos = glm::vec3(rotation * glm::vec4(cameraPos, 1.0f));
+                cameraFront = glm::normalize(-cameraPos);
+
                 lastMouseX = mouseX;
                 lastMouseY = mouseY;
             }
