@@ -82,6 +82,11 @@ int main() {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    // glEnable(GL_DEPTH_TEST);
+    // glDepthFunc(GL_LESS);
+    // glDisable(GL_CULL_FACE);
+
+
     {
         ObjLoader loader;
         if (!loader.Load("res/models/centaurwarrior.obj")) {
@@ -111,7 +116,19 @@ int main() {
 
         Shader shader("res/shaders/Basic.shader");
         shader.Bind();
-        shader.SetUniform4f("u_Color", 0.1f, 0.1f, 0.1f, 1.0f);
+        shader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f); // White color
+
+        // Set light properties
+        shader.SetUniform3f("lightPos", 2.0f, 5.0f, 5.0f);
+        shader.SetUniform3f("lightAmbient", 1.0f, 1.0f, 1.0f);
+        shader.SetUniform3f("lightDiffuse", 1.0f, 1.0f, 1.0f);
+        shader.SetUniform3f("lightSpecular", 1.0f, 1.0f, 1.0f);
+
+        // Set material properties
+        shader.SetUniform3f("matAmbient", 0.7f, 0.7f, 0.7f);
+        shader.SetUniform3f("matDiffuse", 0.8f, 0.8f, 0.8f);
+        shader.SetUniform3f("matSpecular", 1.0f, 1.0f, 1.0f);
+        shader.SetUniform1f("matShininess", 100.0f);
 
         va.Unbind();
         shader.Unbind();
@@ -125,8 +142,8 @@ int main() {
         ImGui::StyleColorsDark();
 
         glm::vec3 translation(0, 0, 0);
-        glm::vec3 cameraPos(0.0f, 0.0f, 5.0f);
-        glm::vec3 cameraFront(0.0f, 0.0f, -1.0f);
+        glm::vec3 cameraPos(5.0f, 5.0f, 5.0f);
+        glm::vec3 cameraFront(-1.0f, -1.0f, -1.0f);
         glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
         float scale = 1.0f;
 
@@ -134,6 +151,7 @@ int main() {
         bool isCameraDragging = false;
         bool isCameraRotating = false;
         double lastMouseX, lastMouseY;
+        float fov = 60.0f;
 
         while (!glfwWindowShouldClose(window)) {
             renderer.Clear();
@@ -147,6 +165,9 @@ int main() {
                 glm::mat4 mvp = proj * view * model;
                 shader.Bind();
                 shader.SetUniformMat4f("u_MVP", mvp);
+                shader.SetUniformMat4f("u_Model", model);
+                shader.SetUniformMat4f("u_View", view);
+                shader.SetUniform3f("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
                 renderer.Draw(va, ib, shader);
             }
@@ -162,11 +183,14 @@ int main() {
             float mouseWheel = ImGui::GetIO().MouseWheel;
             if (mouseWheel != 0.0f) {
                 if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-                    // Adjust the Z position of the camera based on mouse wheel input
-                    cameraPos.z += mouseWheel;
+                    cameraPos.y += mouseWheel;
+                } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+                    fov -= mouseWheel * 2.0f; // Adjust sensitivity as needed
+                    if (fov < 1.0f) fov = 1.0f;
+                    if (fov > 90.0f) fov = 90.0f;
+                    proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 100.0f);
                 } else {
-                    // Adjust the X position of the translation vector based on mouse wheel input
-                    translation.z += mouseWheel;
+                    translation.y += mouseWheel;
                 }
             }
 
@@ -194,7 +218,7 @@ int main() {
                 double deltaX = mouseX - lastMouseX;
                 double deltaY = mouseY - lastMouseY;
                 translation.x += static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
-                translation.y -= static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+                translation.z += static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
                 lastMouseX = mouseX;
                 lastMouseY = mouseY;
             }
@@ -205,7 +229,7 @@ int main() {
                 double deltaX = mouseX - lastMouseX;
                 double deltaY = mouseY - lastMouseY;
                 cameraPos.x -= static_cast<float>(deltaX) * 0.01f; // Adjust sensitivity as needed
-                cameraPos.y += static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
+                cameraPos.z += static_cast<float>(deltaY) * 0.01f; // Adjust sensitivity as needed
                 lastMouseX = mouseX;
                 lastMouseY = mouseY;
             }
