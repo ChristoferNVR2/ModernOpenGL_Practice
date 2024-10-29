@@ -48,6 +48,7 @@ bool ObjLoader::Load(const std::string& filePath) {
                 vertex.position = positions[posIndex[i] - 1];
                 vertex.texCoord = texCoords[texIndex[i] - 1];
                 vertex.normal = normals[normIndex[i] - 1];
+                vertex.print();
                 vertices.push_back(vertex);
                 indices.push_back(vertices.size() - 1);
             }

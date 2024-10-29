@@ -2,8 +2,8 @@
 #version 330 core
 
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec2 texCoord;
-layout(location = 2) in vec3 normal;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec2 texCoord;
 
 uniform mat4 u_MVP;
 uniform mat4 u_Model;
@@ -55,6 +55,7 @@ void main()
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), matShininess);
     vec3 specular = lightSpecular * (spec * matSpecular);
 
-    vec3 result = ambient + diffuse + specular;
-    color = vec4(result, 1.0) * u_Color;
+    // Final color calculation
+    vec3 result = (ambient + diffuse + specular) * u_Color.rgb; // Assuming u_Color is a vec4
+    color = vec4(result, .5);  // Preserve u_Color's alpha
 }

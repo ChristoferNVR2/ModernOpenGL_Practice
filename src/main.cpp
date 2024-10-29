@@ -58,12 +58,13 @@ int main() {
     if (!glfwInit())
         return -1;
 
-    /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Hello World", nullptr, nullptr);
-
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    /* Create a windowed mode window and its OpenGL context */
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Hello World", nullptr, nullptr);
+
 
     if (!window) {
         glfwTerminate();
@@ -93,6 +94,10 @@ int main() {
             std::cerr << "Failed to load .obj file." << std::endl;
             return -1;
         }
+        // if (!loader.Load("res/models/uploads_files_2787791_Mercedes+Benz+GLS+580.obj")) {
+        //     std::cerr << "Failed to load .obj file." << std::endl;
+        //     return -1;
+        // }
 
         const auto& vertices = loader.GetVertices();
         const auto& indices = loader.GetIndices();
@@ -118,10 +123,23 @@ int main() {
         shader.Bind();
         shader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f); // White color
 
-        // Set light properties
+        // shader.SetUniform3f("lightPos", 0.0f, 500.0f, 0.0f);
+
+        // // Light properties (adjust these based on your scene's brightness)
+        // shader.SetUniform3f("lightAmbient", 0.2f, 0.0f, 0.0f);   // Low ambient red light
+        // shader.SetUniform3f("lightDiffuse", 0.8f, 0.0f, 0.0f);   // Stronger diffuse red
+        // shader.SetUniform3f("lightSpecular", 0.1f, 0.1f, 0.1f);  // Minimal specular
+        //
+        // // Material properties for matte red
+        // shader.SetUniform3f("matAmbient", 0.2f, 0.0f, 0.0f);     // Soft ambient red
+        // shader.SetUniform3f("matDiffuse", 0.6f, 0.0f, 0.0f);     // Strong diffuse red
+        // shader.SetUniform3f("matSpecular", 0.1f, 0.1f, 0.1f);    // Very low specular for matte look
+        // shader.SetUniform1f("matShininess", 100.0f);              // Low shininess for matte finish
+
+        // Light properties (adjust these based on your scene's brightness)
         shader.SetUniform3f("lightPos", 2.0f, 5.0f, 5.0f);
-        shader.SetUniform3f("lightAmbient", 1.0f, 1.0f, 1.0f);
-        shader.SetUniform3f("lightDiffuse", 1.0f, 1.0f, 1.0f);
+        shader.SetUniform3f("lightAmbient", .5f, .5f, .5f);
+        shader.SetUniform3f("lightDiffuse", .5f, .5f, .5f);
         shader.SetUniform3f("lightSpecular", 1.0f, 1.0f, 1.0f);
 
         // Set material properties
@@ -161,7 +179,8 @@ int main() {
             ImGui_ImplGlfwGL3_NewFrame();
 
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale)); // ONLY FOR THE CAR
+                // glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.8, -1, 3.9)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale));
                 glm::mat4 mvp = proj * view * model;
                 shader.Bind();
                 shader.SetUniformMat4f("u_MVP", mvp);
