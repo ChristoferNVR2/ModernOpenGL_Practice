@@ -13,7 +13,6 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
-#include "ObjLoader.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -21,17 +20,21 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw_gl3.h"
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 void DrawAxes(const glm::mat4& proj, const glm::mat4& view) {
     static constexpr float axisVertices[] = {
         // X axis (red)
         0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        10.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        150.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
         // Y axis (green)
         0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 10.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 150.0f, 0.0f, 0.0f, 1.0f, 0.0f,
         // Z axis (blue)
         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 1.0f
+        0.0f, 0.0f, 150.0f, 0.0f, 0.0f, 1.0f
     };
 
     VertexArray va;
@@ -45,7 +48,8 @@ void DrawAxes(const glm::mat4& proj, const glm::mat4& view) {
     auto model = glm::mat4(1.0f);
     glm::mat4 mvp = proj * view * model;
 
-    Shader axisShader("res/shaders/Axis.shader");
+    // Shader axisShader("res/shaders/Axis.shader");
+    Shader axisShader("/home/chrisvega/CLionProjects/ModernOpenGL/res/shaders/Axis.shader");
     axisShader.Bind();
     axisShader.SetUniformMat4f("u_MVP", mvp);
 
@@ -84,29 +88,62 @@ int main() {
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     // glEnable(GL_DEPTH_TEST);
-    // glDepthFunc(GL_LESS);
-    // glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LESS);
+    glDisable(GL_CULL_FACE);
 
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     {
-        ObjLoader loader;
-        if (!loader.Load("res/models/centaurwarrior.obj")) {
-            std::cerr << "Failed to load .obj file." << std::endl;
+        Assimp::Importer importer;
+        // const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/centaurwarrior.obj", aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        // const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/uploads_files_2787791_Mercedes+Benz+GLS+580.obj", aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        // const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/pilot.fbx",
+        //                                   aiProcess_Triangulate |
+        //                                   aiProcess_FlipUVs |
+        //                                   aiProcess_CalcTangentSpace);
+        const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/pilot.fbx",
+                                          aiProcess_Triangulate |
+                                          aiProcess_JoinIdenticalVertices |
+                                          aiProcess_SortByPType);
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+            std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
             return -1;
         }
-        // if (!loader.Load("res/models/uploads_files_2787791_Mercedes+Benz+GLS+580.obj")) {
-        //     std::cerr << "Failed to load .obj file." << std::endl;
-        //     return -1;
-        // }
 
-        const auto& vertices = loader.GetVertices();
-        const auto& indices = loader.GetIndices();
+        std::vector<float> vertices;
+        std::vector<unsigned int> indices;
+
+        aiMesh* mesh = scene->mMeshes[0];
+        for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+            vertices.push_back(mesh->mVertices[i].x);
+            vertices.push_back(mesh->mVertices[i].y);
+            vertices.push_back(mesh->mVertices[i].z);
+
+            if (mesh->mTextureCoords[0]) {
+                vertices.push_back(mesh->mTextureCoords[0][i].x);
+                vertices.push_back(mesh->mTextureCoords[0][i].y);
+            } else {
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+            }
+
+            vertices.push_back(mesh->mNormals[i].x);
+            vertices.push_back(mesh->mNormals[i].y);
+            vertices.push_back(mesh->mNormals[i].z);
+        }
+
+        for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+            aiFace face = mesh->mFaces[i];
+            for (unsigned int j = 0; j < face.mNumIndices; j++) {
+                indices.push_back(face.mIndices[j]);
+            }
+        }
 
         GLCall(glEnable(GL_BLEND));
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         VertexArray va;
-        VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
+        VertexBuffer vb(vertices.data(), vertices.size() * sizeof(float));
 
         VertexBufferLayout layout;
         layout.Push<float>(3); // Position
@@ -116,25 +153,12 @@ int main() {
 
         IndexBuffer ib(indices.data(), indices.size());
 
-        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1920.0f / 1080.0f, 0.1f, 1000.0f);
         glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        Shader shader("res/shaders/Basic.shader");
+        Shader shader("/home/chrisvega/CLionProjects/ModernOpenGL/res/shaders/Basic.shader");
         shader.Bind();
         shader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f); // White color
-
-        // shader.SetUniform3f("lightPos", 0.0f, 500.0f, 0.0f);
-
-        // // Light properties (adjust these based on your scene's brightness)
-        // shader.SetUniform3f("lightAmbient", 0.2f, 0.0f, 0.0f);   // Low ambient red light
-        // shader.SetUniform3f("lightDiffuse", 0.8f, 0.0f, 0.0f);   // Stronger diffuse red
-        // shader.SetUniform3f("lightSpecular", 0.1f, 0.1f, 0.1f);  // Minimal specular
-        //
-        // // Material properties for matte red
-        // shader.SetUniform3f("matAmbient", 0.2f, 0.0f, 0.0f);     // Soft ambient red
-        // shader.SetUniform3f("matDiffuse", 0.6f, 0.0f, 0.0f);     // Strong diffuse red
-        // shader.SetUniform3f("matSpecular", 0.1f, 0.1f, 0.1f);    // Very low specular for matte look
-        // shader.SetUniform1f("matShininess", 100.0f);              // Low shininess for matte finish
 
         // Light properties (adjust these based on your scene's brightness)
         shader.SetUniform3f("lightPos", 2.0f, 5.0f, 5.0f);
@@ -146,7 +170,7 @@ int main() {
         shader.SetUniform3f("matAmbient", 0.7f, 0.7f, 0.7f);
         shader.SetUniform3f("matDiffuse", 0.8f, 0.8f, 0.8f);
         shader.SetUniform3f("matSpecular", 1.0f, 1.0f, 1.0f);
-        shader.SetUniform1f("matShininess", 100.0f);
+        shader.SetUniform1f("matShininess", 32.0f);
 
         va.Unbind();
         shader.Unbind();
@@ -160,7 +184,7 @@ int main() {
         ImGui::StyleColorsDark();
 
         glm::vec3 translation(0, 0, 0);
-        glm::vec3 cameraPos(5.0f, 5.0f, 5.0f);
+        glm::vec3 cameraPos(75.0f, 75.0f, 75.0f);
         glm::vec3 cameraFront(-1.0f, -1.0f, -1.0f);
         glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
         float scale = 1.0f;
@@ -169,7 +193,7 @@ int main() {
         bool isCameraDragging = false;
         bool isCameraRotating = false;
         double lastMouseX, lastMouseY;
-        float fov = 60.0f;
+        float fov = 50.0f;
 
         while (!glfwWindowShouldClose(window)) {
             renderer.Clear();
@@ -179,8 +203,9 @@ int main() {
             ImGui_ImplGlfwGL3_NewFrame();
 
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale)); // ONLY FOR THE CAR
-                // glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.8, -1, 3.9)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+                // glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0, -100.5, 0)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale)); // ONLY FOR THE PILOT
+                // glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.8, -1, 3.9)) * glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), glm::vec3(scale)); // ONLY FOR THE CAR
                 glm::mat4 mvp = proj * view * model;
                 shader.Bind();
                 shader.SetUniformMat4f("u_MVP", mvp);
@@ -192,7 +217,7 @@ int main() {
             }
 
             {
-                ImGui::SliderFloat3("Translation", &translation.x, -5.0f, 5.0f);
+                ImGui::SliderFloat3("Translation", &translation.x, -50.0f, 50.0f);
                 ImGui::SliderFloat("Scale", &scale, 0.1f, 10.0f);
                 ImGui::SliderFloat3("Camera Position", &cameraPos.x, -10.0f, 10.0f);
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -200,28 +225,42 @@ int main() {
 
             // Capture mouse wheel input
             float mouseWheel = ImGui::GetIO().MouseWheel;
+            // TODO: RECOVER THIS FUNCTIONALITY
+            // if (mouseWheel != 0.0f) {
+            //     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+            //         cameraPos.y += mouseWheel;
+            //     } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+            //         fov -= mouseWheel * 2.0f; // Adjust sensitivity as needed
+            //         if (fov < 1.0f) fov = 1.0f;
+            //         if (fov > 1500.0f) fov = 150.0f;
+            //         proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 1000.0f);
+            //     } else {
+            //         translation.y += mouseWheel;
+            //     }
+            // }
+
+            // ONLY FOR TESTING
             if (mouseWheel != 0.0f) {
-                if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-                    cameraPos.y += mouseWheel;
-                } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
-                    fov -= mouseWheel * 2.0f; // Adjust sensitivity as needed
-                    if (fov < 1.0f) fov = 1.0f;
-                    if (fov > 90.0f) fov = 90.0f;
-                    proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 100.0f);
-                } else {
-                    translation.y += mouseWheel;
-                }
+                fov -= mouseWheel * 2.0f; // Adjust sensitivity as needed
+                if (fov < 1.0f) fov = 1.0f;
+                if (fov > 1500.0f) fov = 1500.0f;
+                proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 1000.0f);
             }
 
+            // TODO: RECOVER THIS FUNCTIONALITY
             // Handle mouse dragging
+            // if (ImGui::IsMouseClicked(0)) {
+            //     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+            //         isCameraDragging = true;
+            //     } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+            //         isCameraRotating = true;
+            //     } else {
+            //         isDragging = true;
+            //     }
+            //     glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+            // }
             if (ImGui::IsMouseClicked(0)) {
-                if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-                    isCameraDragging = true;
-                } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
-                    isCameraRotating = true;
-                } else {
-                    isDragging = true;
-                }
+                isCameraRotating = true;
                 glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
             }
 

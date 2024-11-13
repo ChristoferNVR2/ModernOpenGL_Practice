@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
+find_package(assimp REQUIRED)
 
 # Include GLFW header files
 include_directories(${GLFW_INCLUDE_DIRS})
@@ -47,4 +48,4 @@ add_executable(ModernOpenGL
 )
 
 # Link GLFW
-target_link_libraries(ModernOpenGL PRIVATE glfw OpenGL::GL GLEW::GLEW)
+target_link_libraries(ModernOpenGL PRIVATE glfw OpenGL::GL GLEW::GLEW assimp::assimp)
