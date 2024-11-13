@@ -1,3 +1,5 @@
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <GL/glew.h> // Must be included before GLFW
 #include <GLFW/glfw3.h>
 
@@ -5,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <csignal>
+#include <map>
 
 #include "Renderer.h"
 
@@ -16,6 +19,10 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp> // Include for quaternion functionality
+#include <glm/gtx/quaternion.hpp> // Include for mat4_cast
+#include <glm/gtc/type_ptr.hpp> // Include for make_mat4
+
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw_gl3.h"
@@ -23,6 +30,104 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+
+// Bone structure to store transformation info
+struct Bone {
+    std::string name;
+    glm::mat4 offsetMatrix;
+    glm::mat4 finalTransformation;
+};
+
+// Animation structure to store animation data
+struct Animation {
+    double duration;
+    double ticksPerSecond;
+    std::vector<Bone> bones;
+    std::map<std::string, aiNodeAnim*> channels;
+};
+
+// Function to find a bone by name
+Bone* FindBone(std::vector<Bone>& bones, const std::string& name) {
+    for (auto& bone : bones) {
+        if (bone.name == name) {
+            return &bone;
+        }
+    }
+    return nullptr;
+}
+
+// Function to interpolate between keyframes
+glm::mat4 InterpolateTransform(const aiNodeAnim* channel, double time) {
+    // Interpolate position
+    aiVector3D position(0, 0, 0);
+    if (channel->mNumPositionKeys > 1) {
+        for (unsigned int i = 0; i < channel->mNumPositionKeys - 1; i++) {
+            if (time < channel->mPositionKeys[i + 1].mTime) {
+                float t = (time - channel->mPositionKeys[i].mTime) / (channel->mPositionKeys[i + 1].mTime - channel->mPositionKeys[i].mTime);
+                position = channel->mPositionKeys[i].mValue + t * (channel->mPositionKeys[i + 1].mValue - channel->mPositionKeys[i].mValue);
+                break;
+            }
+        }
+    } else {
+        position = channel->mPositionKeys[0].mValue;
+    }
+
+    // Interpolate rotation
+    aiQuaternion rotation(1, 0, 0, 0);
+    if (channel->mNumRotationKeys > 1) {
+        for (unsigned int i = 0; i < channel->mNumRotationKeys - 1; i++) {
+            if (time < channel->mRotationKeys[i + 1].mTime) {
+                float t = (time - channel->mRotationKeys[i].mTime) / (channel->mRotationKeys[i + 1].mTime - channel->mRotationKeys[i].mTime);
+                aiQuaternion::Interpolate(rotation, channel->mRotationKeys[i].mValue, channel->mRotationKeys[i + 1].mValue, t);
+                break;
+            }
+        }
+    } else {
+        rotation = channel->mRotationKeys[0].mValue;
+    }
+
+    // Interpolate scaling
+    aiVector3D scaling(1, 1, 1);
+    if (channel->mNumScalingKeys > 1) {
+        for (unsigned int i = 0; i < channel->mNumScalingKeys - 1; i++) {
+            if (time < channel->mScalingKeys[i + 1].mTime) {
+                float t = (time - channel->mScalingKeys[i].mTime) / (channel->mScalingKeys[i + 1].mTime - channel->mScalingKeys[i].mTime);
+                scaling = channel->mScalingKeys[i].mValue + t * (channel->mScalingKeys[i + 1].mValue - channel->mScalingKeys[i].mValue);
+                break;
+            }
+        }
+    } else {
+        scaling = channel->mScalingKeys[0].mValue;
+    }
+
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(position.x, position.y, position.z));
+    glm::mat4 rotationMatrix = glm::mat4_cast(glm::quat(rotation.w, rotation.x, rotation.y, rotation.z));
+    glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaling.x, scaling.y, scaling.z));
+
+    return translation * rotationMatrix * scale;
+}
+
+// Function to update bone transformations
+void UpdateBoneTransformations(const aiScene* scene, Animation& animation, double time) {
+    for (auto& bone : animation.bones) {
+        const aiNodeAnim* channel = animation.channels[bone.name];
+        if (channel) {
+            bone.finalTransformation = InterpolateTransform(channel, time);
+        }
+    }
+}
+
+// Function to apply bone transformations to the vertices
+void ApplyBoneTransformations(const std::vector<Bone>& bones, std::vector<float>& vertices) {
+    // This is a simplified example, you need to implement the actual bone transformation application
+    for (size_t i = 0; i < vertices.size(); i += 8) {
+        glm::vec4 position(vertices[i], vertices[i + 1], vertices[i + 2], 1.0f);
+        glm::vec4 transformedPosition = bones[0].finalTransformation * position;
+        vertices[i] = transformedPosition.x;
+        vertices[i + 1] = transformedPosition.y;
+        vertices[i + 2] = transformedPosition.z;
+    }
+}
 
 void DrawAxes(const glm::mat4& proj, const glm::mat4& view) {
     static constexpr float axisVertices[] = {
@@ -101,10 +206,18 @@ int main() {
         //                                   aiProcess_Triangulate |
         //                                   aiProcess_FlipUVs |
         //                                   aiProcess_CalcTangentSpace);
-        const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/pilot.fbx",
-                                          aiProcess_Triangulate |
-                                          aiProcess_JoinIdenticalVertices |
-                                          aiProcess_SortByPType);
+
+        // TODO: RECOVER THIS FUNCTIONALITY
+        // const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/pilot.fbx",
+        //                                   aiProcess_Triangulate |
+        //                                   aiProcess_JoinIdenticalVertices |
+        //                                   aiProcess_SortByPType);
+
+        const aiScene* scene = importer.ReadFile("/home/chrisvega/CLionProjects/ModernOpenGL/res/models/Walking.fbx",
+                                                 aiProcess_Triangulate |
+                                                 aiProcess_FlipUVs |
+                                                 aiProcess_CalcTangentSpace);
+
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
             return -1;
@@ -153,7 +266,7 @@ int main() {
 
         IndexBuffer ib(indices.data(), indices.size());
 
-        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1920.0f / 1080.0f, 0.1f, 1000.0f);
+        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1920.0f / 1080.0f, 0.1f, 10000.0f);
         glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         Shader shader("/home/chrisvega/CLionProjects/ModernOpenGL/res/shaders/Basic.shader");
@@ -195,6 +308,32 @@ int main() {
         double lastMouseX, lastMouseY;
         float fov = 50.0f;
 
+        // Load animation data
+        Animation animation;
+        if (scene->mAnimations[0]) {
+            aiAnimation* aiAnim = scene->mAnimations[0];
+            animation.duration = aiAnim->mDuration;
+            animation.ticksPerSecond = aiAnim->mTicksPerSecond != 0 ? aiAnim->mTicksPerSecond : 25.0;
+
+            for (unsigned int i = 0; i < aiAnim->mNumChannels; i++) {
+                aiNodeAnim* channel = aiAnim->mChannels[i];
+                animation.channels[channel->mNodeName.data] = channel;
+            }
+
+            for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+                aiMesh* mesh = scene->mMeshes[i];
+                for (unsigned int j = 0; j < mesh->mNumBones; j++) {
+                    aiBone* aiBone = mesh->mBones[j];
+                    Bone bone;
+                    bone.name = aiBone->mName.data;
+                    bone.offsetMatrix = glm::transpose(glm::make_mat4(&aiBone->mOffsetMatrix.a1));
+                    animation.bones.push_back(bone);
+                }
+            }
+        }
+
+        double animationTime = 0.0;
+
         while (!glfwWindowShouldClose(window)) {
             renderer.Clear();
 
@@ -212,6 +351,22 @@ int main() {
                 shader.SetUniformMat4f("u_Model", model);
                 shader.SetUniformMat4f("u_View", view);
                 shader.SetUniform3f("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+
+                // Update animation time
+                animationTime += ImGui::GetIO().DeltaTime * animation.ticksPerSecond;
+                if (animationTime > animation.duration) {
+                    animationTime = 0.0;
+                }
+
+                // Update bone transformations
+                UpdateBoneTransformations(scene, animation, animationTime);
+
+                // Apply bone transformations to the vertices
+                ApplyBoneTransformations(animation.bones, vertices);
+
+                // Update vertex buffer with transformed vertices
+                vb.Bind();
+                glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
 
                 renderer.Draw(va, ib, shader);
             }
@@ -244,7 +399,7 @@ int main() {
                 fov -= mouseWheel * 2.0f; // Adjust sensitivity as needed
                 if (fov < 1.0f) fov = 1.0f;
                 if (fov > 1500.0f) fov = 1500.0f;
-                proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 1000.0f);
+                proj = glm::perspective(glm::radians(fov), 1920.0f / 1080.0f, 0.1f, 10000.0f);
             }
 
             // TODO: RECOVER THIS FUNCTIONALITY
