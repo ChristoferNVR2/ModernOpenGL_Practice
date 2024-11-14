@@ -4,19 +4,28 @@
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec2 texCoord;
 layout(location = 2) in vec3 normal;
+layout(location = 3) in ivec4 boneIDs; // Bone IDs
+layout(location = 4) in vec4 weights;  // Weights
 
 uniform mat4 u_MVP;
 uniform mat4 u_Model;
 uniform mat4 u_View;
+uniform mat4 u_BoneTransforms[100]; // Adjust the size as needed
 
 out vec3 FragPos;
 out vec3 Normal;
 
 void main()
 {
-    FragPos = vec3(u_Model * vec4(position, 1.0));
+    mat4 boneTransform = u_BoneTransforms[boneIDs[0]] * weights[0] +
+                         u_BoneTransforms[boneIDs[1]] * weights[1] +
+                         u_BoneTransforms[boneIDs[2]] * weights[2] +
+                         u_BoneTransforms[boneIDs[3]] * weights[3];
+
+    vec4 transformedPosition = boneTransform * vec4(position, 1.0);
+    FragPos = vec3(u_Model * transformedPosition);
     Normal = mat3(transpose(inverse(u_Model))) * normal;
-    gl_Position = u_MVP * vec4(position, 1.0);
+    gl_Position = u_MVP * transformedPosition;
 }
 
 #shader fragment

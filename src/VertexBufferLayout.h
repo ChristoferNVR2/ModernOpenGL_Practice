@@ -59,3 +59,9 @@ inline void VertexBufferLayout::Push<unsigned char>(unsigned int count) {
     m_Elements.push_back({ GL_UNSIGNED_BYTE, count, GL_TRUE });
     m_Stride += VertexBufferElement::GetSizeOfType(GL_UNSIGNED_BYTE) * count;
 }
+
+template<>
+inline void VertexBufferLayout::Push<int>(unsigned int count) { // Add this specialization for int
+    m_Elements.push_back({ GL_INT, count, GL_FALSE });
+    m_Stride += VertexBufferElement::GetSizeOfType(GL_INT) * count;
+}

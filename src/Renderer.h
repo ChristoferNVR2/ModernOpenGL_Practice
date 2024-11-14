@@ -16,6 +16,8 @@
     #define debugBreak() raise(SIGTRAP)  // Linux equivalent for debug break
 #elif _WIN32
     #define debugBreak() __debugbreak()  // Windows debug break
+#elif __APPLE__
+    #define debugBreak() __builtin_trap()  // Mac debug break
 #endif
 
 #define ASSERT(x) if (!(x)) debugBreak();

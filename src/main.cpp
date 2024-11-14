@@ -108,12 +108,18 @@ glm::mat4 InterpolateTransform(const aiNodeAnim* channel, double time) {
 }
 
 // Function to update bone transformations
-void UpdateBoneTransformations(const aiScene* scene, Animation& animation, double time) {
+void UpdateBoneTransformations(const aiScene* scene, Animation& animation, double time, std::vector<glm::mat4>& boneTransforms) {
     for (auto& bone : animation.bones) {
         const aiNodeAnim* channel = animation.channels[bone.name];
         if (channel) {
             bone.finalTransformation = InterpolateTransform(channel, time);
         }
+    }
+
+    // Collect bone transformations
+    boneTransforms.clear();
+    for (const auto& bone : animation.bones) {
+        boneTransforms.push_back(bone.finalTransformation);
     }
 }
 
@@ -262,6 +268,8 @@ int main() {
         layout.Push<float>(3); // Position
         layout.Push<float>(2); // Texture coordinates
         layout.Push<float>(3); // Normal
+        layout.Push<int>(4);
+        layout.Push<float>(4);
         va.AddBuffer(vb, layout);
 
         IndexBuffer ib(indices.data(), indices.size());
@@ -300,6 +308,7 @@ int main() {
         glm::vec3 cameraPos(75.0f, 75.0f, 75.0f);
         glm::vec3 cameraFront(-1.0f, -1.0f, -1.0f);
         glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         float scale = 1.0f;
 
         bool isDragging = false;
@@ -333,6 +342,7 @@ int main() {
         }
 
         double animationTime = 0.0;
+        std::vector<glm::mat4> boneTransforms(100); // Adjust the size as needed
 
         while (!glfwWindowShouldClose(window)) {
             renderer.Clear();
@@ -359,7 +369,12 @@ int main() {
                 }
 
                 // Update bone transformations
-                UpdateBoneTransformations(scene, animation, animationTime);
+                UpdateBoneTransformations(scene, animation, animationTime, boneTransforms);
+
+                // Pass bone transformations to the shader
+                for (size_t i = 0; i < boneTransforms.size(); ++i) {
+                    shader.SetUniformMat4f("u_BoneTransforms[" + std::to_string(i) + "]", boneTransforms[i]);
+                }
 
                 // Apply bone transformations to the vertices
                 ApplyBoneTransformations(animation.bones, vertices);
